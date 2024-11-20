@@ -116,26 +116,6 @@ func handleRemoteConfigError(resp *internal.Response) error {
 
 	return err
 }
-
-type ServerTemplateData struct {
-	Conditions	interface{}							`json:"conditions"`
-	Parameters	map[string]RemoteConfigParameter	`json:"parameters"`
-
-	Version struct {
-		VersionNumber	string	`json:"versionNumber"`
-		IsLegacy		bool	`json:"isLegacy"`
-	}	`json:"version"`
-
-	ETag	string
-}
-
-type RemoteConfigParameter struct {
-	DefaultValue		RemoteConfigParameterValue				`json:"defaultValue"`
-	ConditionalValues	map[string]RemoteConfigParameterValue	`json:"conditionalValues"`
-}
-
-type RemoteConfigParameterValue interface{}
-
 // ServerTemplate represents a template with configuration data, cache, and service information.
 type ServerTemplate struct {
 	RcClient	*rcClient
@@ -164,9 +144,8 @@ func (s *ServerTemplate) Load(ctx context.Context) error {
 		return err
 	}
 
-	templateData.ETag = response.Header.Get("etag")
+	templateData.Etag = response.Header.Get("etag")
 	s.Cache = &templateData
-	fmt.Println("Etag", s.Cache.ETag) // TODO: Remove ETag 
 	return nil
 }
 
@@ -178,7 +157,14 @@ func (s *ServerTemplate) Set(templateData *ServerTemplateData) {
 // Evaluate processes the cached template data with a condition evaluator 
 // based on the provided context.
 func (s *ServerTemplate) Evaluate(context map[string]interface{}) *ServerConfig {
-	// TODO: Write ConditionalEvaluator for evaluating
+	
+	ce := ConditionEvaluator{
+		conditions: s.Cache.Conditions,
+		evaluationContext: context,
+	}
+
+	orderedConditions, evaluatedConditions := ce.evaluateConditions() 
+	fmt.Println(orderedConditions ,evaluatedConditions)
 	return &ServerConfig{ConfigValues: s.Cache.Parameters}
 }
 
